@@ -1,0 +1,96 @@
+select * 
+from [dbo].[services_data]
+
+
+
+-------------------------------------------------------------
+		        -- Creating Foreign Key
+-------------------------------------------------------------
+
+ALTER TABLE [ServiceBranchDB ].[dbo].[services_data]
+ADD CONSTRAINT fk_branch_id
+FOREIGN KEY (branch_id) REFERENCES [dbo].[branch_data](Branch_ID);
+
+
+-------------------------------------------------------------
+		        -- Problem Statement
+-------------------------------------------------------------
+
+-- (1) Sum total fees from the service data table and group them by the region from the branch data table to see which region generates the most revenue.
+
+select bran.region, sum(serv.total_revenue) as total_revenue
+from [ServiceBranchDB ].[dbo].[services_data]  serv
+join [ServiceBranchDB ].[dbo].[branch_data]  bran
+on serv.branch_id=bran.Branch_ID
+Group by bran.region
+order by total_revenue Desc;
+
+SELECT
+		b.Region,
+		s.service_date AS ServiceDate,
+		SUM(s.total_revenue) as TotalRevenue
+from [dbo].[services_data]  s
+join [dbo].[branch_data]  b
+on s.branch_id=b.branch_id
+Group by b.Region,s.service_date
+
+-- (2)Sum total fees from the service data table and group them by the department from the service data table to see which department generates the most revenue.
+
+select 
+department, 
+sum(total_revenue) as total_fees,service_date
+from [ServiceBranchDB ].[dbo].[services_data] 
+Group by department,service_date
+
+
+select
+	TOP 5 client_name,
+	SUM(total_revenue) AS TotalRevenue,
+	service_date
+FROM [ServiceBranchDB ].[dbo].[services_data]
+GROUP BY client_name,service_date
+
+-- (3) Determine the top client
+
+select client_name ,sum(total_revenue)as total_revenue
+from [ServiceBranchDB ].[dbo].[services_data]
+group by client_name
+order by total_revenue desc
+
+
+
+-------------------------------------------------------------
+		        -- KPI(s)
+-------------------------------------------------------------
+
+-- (1) Total Revenue
+-- (2) Total Hours
+-- (3) Revenue per Region over Overall Revenue
+-- (4) Month on Month Revenue Increase
+
+WITH MonthlyRevenue AS (
+	select
+		FORMAT(service_date, 'yyyy-MM-dd') AS Month,
+		SUM(total_revenue) AS Revenue
+	FROM
+		[dbo].[services_data]
+	group by
+		FORMAT(service_date, 'yyyy-MM-dd')
+),
+RevenueCompairison AS (
+SELECT
+ Month,
+ Revenue,
+ LAG(Revenue) OVER (ORDER BY Month) AS PreviousMonthRevenue
+FROM
+	MonthlyRevenue
+)
+SELECT
+Month,
+Revenue,
+PreviousMonthRevenue,
+case when PreviousMonthRevenue > 0  then ((Revenue - PreviousMonthRevenue)/PreviousMonthRevenue)*100 else null end AS RevenuePercentageIncrease
+FROM
+	RevenueCompairison 
+WHERE
+	PreviousMonthRevenue is not null;
